@@ -1,78 +1,16 @@
 # agent-core
 
 The agent-agnostic execution and service capability layer for `dev-flow-agent`,
-`cr_plugin`, `unit-test-agent`, and `Corbell/spec_generator_agent`.
+[`cragent`](https://github.com/comain/cragent), and
+[`spec_generator_agent`](https://github.com/comain/spec_generator_agent).
 
 Products select an agent by configuration and compose shared Git, prompt,
 profile, workflow, runtime, identity, delivery, and API capabilities. Product
 code keeps domain policy and does not import OpenCode, Pi, or any future agent
 implementation directly. The original OpenCode harness was extracted from
-`unit-test-agent`; see [Deviations](#deviations) for intentional differences in
-that implementation.
+[`cragent`](https://github.com/comain/cragent).
 
-## Version
-
-**0.8.0** is a breaking release for spec-gen (Corbell) adoption. See
-[ADR-005](docs/decisions/ADR-005-breaking-08-for-reuse-first-harness-and-git.md).
-
-Corbell pins **0.8.x**. UTA and CR stay on last **0.7.x**. Mixed pairs
-(a 0.7 consumer on 0.8 core, or the reverse) are unsupported.
-
-### 0.8.0 breaks
-
-- `OpenCodeHarness.run_turn` forwards `session_id`. First candidate may
-  continue; later candidates are a fresh session and take
-  `bootstrap_message` **iff set**. `SessionAffinity.run` takes a `Harness`,
-  not an OpenCode process. Products must not import `OpenCodeHarness`.
-- `GitWorkspace.repo_lock` is POSIX `fcntl.flock` plus `RLock`. Windows is
-  unsupported for this lock.
-- `ModelHealthTracker` skips unhealthy models even when `models=` is set;
-  rate_limit 60s, timeout 5m; prefer last-success; if all cooling, try anyway.
-
-Additive on the same tag: stdin / `--title` / per-turn `pure`,
-`render_placeholders`, `update_refs_with_lease`.
-
-Patch **0.8.1** maps the neutral `HarnessSpec.options["isolate_attempts"]`
-setting into the OpenCode harness so products can reuse a stable lane sandbox.
-
-Patch **0.8.2** keeps complete structured response envelopes when they contain
-nested JSON objects. Without this fix, a consumer could receive the last child
-record instead of the planner or writer response.
-
-Patch **0.8.3** preserves flat `cacheRead` / `cacheWrite` aliases emitted by
-older OpenCode streams so shared token accounting does not under-report cache
-usage.
-
-Patch **0.8.4** recognizes plain-string provider authentication failures so
-the configured provider chain can fail over instead of terminating the task.
-
-Patch **0.8.5** quarantines every model behind a provider whose credential is
-invalid. The quarantine survives later turns and tasks until the runtime reloads
-its provider configuration, preventing repeated paid authentication failures.
-
-Patch **0.8.6** also quarantines a provider when its model-discovery endpoint
-explicitly rejects the configured credential, before a paid agent turn reaches
-that provider.
-
-Patch **0.8.47** probes the configured `opencode_bin` for `--version`. 0.8.46
-parsed `v2.0.6` correctly, but still probed a bare `opencode` on PATH. A
-systemd unit that sets `CR_AGENT_OPENCODE_BIN=/root/.opencode/bin/opencode`
-and a PATH without that directory then fail-closed to 1.x flags, including
-`--pure`, which 2.x rejects immediately.
-
-Patch **0.8.46** recognizes OpenCode's `v2.0.6` version banner. 0.8.45 treated
-that string as 1.x and passed `--pure`, which 2.x rejects immediately.
-
-Patch **0.8.45** talks to OpenCode 2.x as well as 1.x. The harness probes
-the configured binary's `--version` (override with `AGENT_OPENCODE_MAJOR=1|2`).
-On 2.x it uses `--standalone` so turns do not join the user-level background
-service, emits native `permissions` / `providers` config, turns snapshots
-and warming off, leaves checkpoint compaction on, and waits through
-`/api/experimental/session/{id}/wait`. The Cursor OAuth plugin is no longer
-bootstrapped; V1 plugin implementations do not run on OpenCode 2.
-
-**0.7.0** remains documented at
-[`docs/release-0.7.0.md`](docs/release-0.7.0.md).
+Release history is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -83,8 +21,10 @@ pip install -e /path/to/agent-core
 Requires Python >= 3.11.
 
 The floor matches the **lowest interpreter any consumer actually runs in
-production** (UTA production is 3.11.15; UTA beta and Corbell production are
-3.12; cr_plugin runs 3.13). An earlier `>=3.9` floor was inherited from stale
+production** ([cragent](https://github.com/comain/cragent) production is 3.11.15
+and also runs 3.13; its beta and
+[spec_generator_agent](https://github.com/comain/spec_generator_agent)
+production are 3.12). An earlier `>=3.9` floor was inherited from stale
 `requires-python` metadata in two `pyproject.toml` files and matched nothing
 deployed. Verified green on 3.11, 3.12, and 3.13.
 
@@ -748,30 +688,6 @@ Three failure modes worth knowing, each covered by a test against a real repo:
 Set `clone_depth=None` for workflows such as retrospective analysis that must
 retain full history; normal task workspaces remain shallow by default.
 
-## Deviations
-
-Complete list of intentional differences from the source harness. Each is pinned
-by a test in `tests/test_port_deviations.py`.
-
-| # | Change | Reason |
-|---|---|---|
-| D1 | `uta_debug_log_dir()` → `debug_log_dir()`; `/tmp/uta-run-logs` → `/tmp/agent-run-logs` | A shared package cannot ship a product-branded public name or runtime path |
-| D2 | `PROJECT_ROOT` removed; `EXTERNAL_DIRS_CONFIG` resolves against the consumer's working directory | The source derived a repo root from package depth (`parents[2]`). The identical expression resolves to `src/` here — valid Python, silently different meaning |
-| D3 | `index_source_dirs` defaults to `""`; cache dir defaults to `.agent_cache` | The source shipped deployment-specific paths as defaults |
-| D4 | Credential env aliases `UTA_OPENAI_API_KEY` / `UTA_BASE_URL` dropped in favour of `AGENT_*` and vendor-standard names | Those aliases bypassed `env_prefix` and claimed another product's namespace |
-| D5 | `AGENT_SERVICE_PYTHON_BIN` **and** `UTA_SERVICE_PYTHON_BIN` are both emitted; cache directory became `agent_cache_dir` config | Compatibility window. These are cross-repo contracts — the source repo's Python verifier reads the env var and 63 sites there read `.uta_cache`. Renaming outright would break them silently on migration. Legacy names drop once those consumers migrate |
-| D6 | `run_turn(..., attachments=[...])` emits `-f <path>` per file, **after** the message | `opencode run` accepts `-f/--file`; the source harness never exposed it because its workflows are text-only. Additive — the emitted command is byte-identical when unused. Placement matters: `-f` takes an array, so putting it before the message makes the CLI swallow the prompt as a filename |
-| D7 | `run_turn(..., is_cancelled=...)` — cooperative cancellation; a cancelled turn is `type="cancelled"` and **not** `fallback_eligible` | The source harness cannot stop a turn in flight. A consumer's fork added this and wires it to its stop/cancel control channel, so without it a migrated product silently loses the ability to stop a running review. Not fallback-eligible matters: an operator pressing stop must not roll on to the next provider and keep spending |
-| D8 | `TurnResult.model_id` and `TurnResult.cost_usd` | Present in a consumer's fork, absent from the source; `cost_usd` is what that product's cost accounting reads. Additive defaults |
-| D10 | `run_turn(prompt_file=Path(...))` accepted as an alternative to `message=` (exactly one required) | The source only writes a prompt file above a threshold — and that threshold reads the undeclared setting below, so short prompts always travelled as an argv string. A caller-supplied file is the better contract: argv has an OS length limit, argv is visible in `ps` to every user on the host, and the file is a durable artifact that makes a failed turn reproducible |
-| D12 | `opencode_permissions` / `opencode_permission_dirs` merged into the generated `permission` block, and `opencode_default_external_dirs` to decline the built-in `/tmp`, temp-dir and `~/.m2` grants | Upstream emits only `external_directory`, leaving every other capability at OpenCode's default. A product whose agent *reviews* code sets `{"edit": "deny"}` — a reviewer able to modify the code it reviews is a real hazard, and upstream cannot express it. Empty by default, so upstream behaviour is unchanged |
-| D13 | Model selection walks the configured chain in order, skipping models marked unusable; an explicitly named model wins only while it is itself usable | Upstream preferred `opencode_model` whenever it appeared anywhere in the chain, letting a later entry jump ahead of earlier ones. Pinning a rate-limited model would also strand a task on it rather than falling through |
-| D14 | `http_get` resolved at call time rather than bound as a default argument | A default argument binds `httpx.get` at import, so `monkeypatch("httpx.get")` never takes effect and a consumer cannot stub the availability probe |
-| D16 | A provider transport failure on stderr ends the turn immediately as `provider_error` | Upstream waits for the stream-idle timeout, so an unreachable provider costs a full timeout **per model in the chain**, and the turn is then classified `no_output` — indistinguishable from a slow model, so the provider-skip rule can never fire. Measured on the integration suite: 99.8s → 3.65s |
-| D17 | `opencode_pass_model_flag` — `--model` on the command line becomes optional | A consumer deliberately omits it so the generated `opencode.json` carries the model and OpenCode resolves it through its own provider configuration. Only safe alongside a per-turn workspace, since without one a fallback attempt would inherit the last-written config. Default `True` |
-| D18 | `--dangerously-skip-permissions` is conditional, defaulting to "skip only when no permission policy is configured" | Upstream passed it unconditionally, which **overrides the permission block entirely** — so D12 was inert and a product setting `{"edit": "deny"}` still got an agent that could edit. Automatic rather than another flag to remember |
-| — | `opencode_prompt_file_threshold_chars` left undeclared | It is read via `getattr(..., 0) or 60000` but was never declared, so the env var has never had any effect. Declaring it would silently activate a dead knob |
-
 ## Testing
 
 ```bash
@@ -789,5 +705,5 @@ the deterministic and live-turn phases pass.
 
 ## Provenance
 
-Ported from `unit-test-agent` at commit `0d70115783fc4cd075a26e04909585ba2f34b288`.
+Ported from [`cragent`](https://github.com/comain/cragent) at commit `0d70115783fc4cd075a26e04909585ba2f34b288`.
 See [`docs/port-baseline.md`](docs/port-baseline.md).
