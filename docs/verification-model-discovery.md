@@ -59,7 +59,7 @@ were changed to achieve these two passes.
 
 Evidence: `/tmp/agent-core-model-sources-gate.json` and
 `/tmp/agent-core-model-configuration-gate.json`. Both used the standalone
-`tools/python-enforcement/blf_python_test_enforce.py` with `--repo .`,
+`tools/python-enforcement/python_test_enforce.py` with `--repo .`,
 `--base-ref origin/main`, the corresponding `--target`, `--json-output`, and
 `--evidence-output`. Sources additionally specified
 `--test-path tests/test_model_catalog_sources.py`; configuration used automatic
