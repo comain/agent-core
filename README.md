@@ -5,8 +5,9 @@ The agent-agnostic execution and service capability layer for `dev-flow-agent`,
 [`unit-test-agent`](https://github.com/comain/unit-test-agent), and
 [`spec_generator_agent`](https://github.com/comain/spec_generator_agent).
 
-Products select an agent by configuration and compose shared Git, prompt,
-profile, workflow, runtime, identity, delivery, and API capabilities. Product
+Products select an agent by configuration and compose shared model selection,
+Git, prompt, profile, workflow, runtime, identity, delivery, and API
+capabilities. Product
 code keeps domain policy and does not import OpenCode, Pi, or any future agent
 implementation directly. The original OpenCode harness was extracted from
 [`unit-test-agent`](https://github.com/comain/unit-test-agent).
@@ -269,6 +270,7 @@ reach into implementation modules.
 | Package | Shared responsibility | Main public API |
 |---|---|---|
 | `agent_core.harness` | Configured agent selection, reusable sessions, turns, fallback, records | `Harness`, `HarnessSession`, `HarnessSpec`, `TurnProgress`, `create_configured_harness`, `open_harness_session`, `run_harness_node`, `TurnResult`, `TurnRecord`, `AgentTurnResult`, `AgentSessionRef`, `PaidAttempts`, `execute_agent_turn`, `diagnose_sessions` |
+| `agent_core.model_selection` | Cached catalog admission, policy ranking, and provider-priority fallback | `Candidate`, `ModelPolicy`, `resolve_selection`, `DiscoveryRuntime`, `load_selection_config` |
 | `agent_core.git` | Credentials, bounded/cancellable Git execution, change discovery, publishing | `GitWorkspace`, `GitCredentials`, `ChangeCollector`, `ChangeSet`, `BotIdentity`, Git errors, `is_retryable_git_failure`, `retry_git_operation` |
 | `agent_core.prompts` | Strict template rendering, stable/volatile sections, and reproducible prompt artifacts | `PromptLibrary`, `RenderedPrompt`, `PromptArtifact`, `materialize_prompt` |
 | `agent_core.profiles` | YAML/JSON-defined agent profiles | `AgentProfile`, `ProfileRegistry`, `ProfileError` |
@@ -618,6 +620,53 @@ install_shutdown_handlers(graceful=True)   # once, at service start
 `graceful=True` makes the *first* signal reap children and return, so a
 `TaskDaemon` stops claiming new work and finishes what it holds. A second signal
 exits immediately — what an operator pressing Ctrl-C twice means.
+
+## Model selection (`agent_core.model_selection`)
+
+Products do not hard-code a model chain. Admission reads a cached catalog of
+benchmark scores, prices, and provider inventory, then applies the
+application's policy. A model that fails the policy is not called. When
+nothing eligible remains, discovery raises `NoAvailableModels` instead of
+falling through to a manual or default model.
+
+`ModelPolicy` is the product's restriction: a coding-score floor (default 70),
+`price-efficient` or `best-score` ranking, an allowlist, a denylist, and
+explicit approvals for models that have no score. A null allowlist leaves
+inventory unrestricted; an empty allowlist denies every model. A shared
+denylist wins over an application allowlist. Scored rows with empty, `max`,
+or `xhigh` effort are not admitted.
+
+Provider order in the operator config is fallback priority. Ranking happens
+inside one provider — discounted price, then effort, then coding score — and
+a cheaper or higher-scoring model on a later provider does not jump ahead of
+an eligible model on an earlier one. An unavailable or credential-exhausted
+provider falls through to the next.
+
+The config file is an absolute path owned outside the repository being
+edited (`AGENT_MODEL_SELECTION_CONFIG` or `--config`). It names credential
+environment variables and never contains key material. `refresh` publishes
+the catalog; workers only read it.
+
+```python
+from agent_core.model_selection import Candidate, ModelPolicy, resolve_selection
+
+policy = ModelPolicy(application_id="review", minimum_coding_score=70)
+selection = resolve_selection(
+    [Candidate(identity="pool/example-model", score=80, benchmark_id="bench-1",
+               effort="medium", price=1.2, capability_approved=True)],
+    policy,
+)
+assert selection.model_ids == ("pool/example-model",)
+```
+
+```bash
+python -m agent_core.model_selection explain --config /etc/agent-model-selection/catalog.json
+python -m agent_core.model_selection refresh --config /etc/agent-model-selection/catalog.json
+```
+
+`explain` prints the eligible identities and the reason each other candidate
+was rejected. Operational layout, secret separation, and the refresh launcher
+are in [`docs/usage-model-discovery.md`](docs/usage-model-discovery.md).
 
 ## Pricing (`agent_core.pricing`)
 
