@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-core"
+version = "0.8.52"
+description = "Agent-agnostic execution and service capabilities for AI development products"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.7,<3.0",
+  "pydantic-settings>=2.3,<3.0",
+  "httpx>=0.27,<1.0",
+  # Prompt templates. Unlike langgraph and fastapi this is not optional: every
+  # consumer renders prompts, and it is one small pure-Python package.
+  "jinja2>=3.1,<4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "respx>=0.22", "langgraph>=1.0,<2.0", "langgraph-checkpoint-sqlite>=2.0,<4.0",
+       "fastapi>=0.115,<1.0", "python-multipart>=0.0.9", "httpx>=0.27"]
+# Optional: only needed to drive human gates through LangGraph.
+langgraph = ["langgraph>=1.0,<2.0", "langgraph-checkpoint-sqlite>=2.0,<4.0"]
+# Optional: only needed to write workflow files in YAML rather than JSON.
+yaml = ["pyyaml>=6.0,<7.0"]
+# Optional: only needed to mount the shared task-service router.
+api = ["fastapi>=0.115,<1.0", "python-multipart>=0.0.9"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
