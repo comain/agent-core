@@ -6,6 +6,18 @@ Shared execution and service capabilities for AI development products.
 
 agent-core is the library behind [`cragent`](https://github.com/comain/code-review-agent), [`unit-test-agent`](https://github.com/comain/unit-test-agent), and [`spec_generator_agent`](https://github.com/comain/spec_generator_agent). [`dev-workflow-agent`](https://github.com/comain/dev-workflow-agent) is the worked example: a gated triage, spec, design, and build pipeline composed from these packages. A product selects an agent by configuration and keeps domain policy out of OpenCode, Pi, or any future agent implementation.
 
+## Proven in production
+
+This is not a demo-only framework. Its foundations power two production agents
+inside a large, highly complex enterprise CI/CD environment:
+
+- [`cragent`](https://github.com/comain/code-review-agent) reviews production changes across hundreds of repositories.
+- [`unit-test-agent`](https://github.com/comain/unit-test-agent) generates and enforces tests in the same delivery ecosystem.
+
+Together, these systems have processed billions of model tokens in real
+engineering workflows. The public repositories are sanitized snapshots; the
+production deployments and organization-specific policy remain private.
+
 ## Features
 
 - **Harness** — configured agent turns, reusable sessions, fallback, and shutdown, behind one contract.
