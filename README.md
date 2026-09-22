@@ -1,14 +1,14 @@
 # agent-core
 
 The agent-agnostic execution and service capability layer for `dev-flow-agent`,
-[`cragent`](https://github.com/comain/cragent), and
+[`cragent`](https://github.com/comain/code-review-agent), and
 [`spec_generator_agent`](https://github.com/comain/spec_generator_agent).
 
 Products select an agent by configuration and compose shared Git, prompt,
 profile, workflow, runtime, identity, delivery, and API capabilities. Product
 code keeps domain policy and does not import OpenCode, Pi, or any future agent
 implementation directly. The original OpenCode harness was extracted from
-[`cragent`](https://github.com/comain/cragent).
+[`cragent`](https://github.com/comain/code-review-agent).
 
 Release history is in [CHANGELOG.md](CHANGELOG.md).
 
@@ -21,7 +21,7 @@ pip install -e /path/to/agent-core
 Requires Python >= 3.11.
 
 The floor matches the **lowest interpreter any consumer actually runs in
-production** ([cragent](https://github.com/comain/cragent) production is 3.11.15
+production** ([cragent](https://github.com/comain/code-review-agent) production is 3.11.15
 and also runs 3.13; its beta and
 [spec_generator_agent](https://github.com/comain/spec_generator_agent)
 production are 3.12). An earlier `>=3.9` floor was inherited from stale
@@ -705,5 +705,5 @@ the deterministic and live-turn phases pass.
 
 ## Provenance
 
-Ported from [`cragent`](https://github.com/comain/cragent) at commit `0d70115783fc4cd075a26e04909585ba2f34b288`.
+Ported from [`cragent`](https://github.com/comain/code-review-agent) at commit `0d70115783fc4cd075a26e04909585ba2f34b288`.
 See [`docs/port-baseline.md`](docs/port-baseline.md).

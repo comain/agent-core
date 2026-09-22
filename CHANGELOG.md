@@ -5,7 +5,7 @@
 **0.8.0** is a breaking release for [spec_generator_agent](https://github.com/comain/spec_generator_agent) adoption. See
 [ADR-005](docs/decisions/ADR-005-breaking-08-for-reuse-first-harness-and-git.md).
 
-[spec_generator_agent](https://github.com/comain/spec_generator_agent) pins **0.8.x**. [cragent](https://github.com/comain/cragent) stays on last **0.7.x**. Mixed pairs
+[spec_generator_agent](https://github.com/comain/spec_generator_agent) pins **0.8.x**. [cragent](https://github.com/comain/code-review-agent) stays on last **0.7.x**. Mixed pairs
 (a 0.7 consumer on 0.8 core, or the reverse) are unsupported.
 
 ### 0.8.0 breaks
