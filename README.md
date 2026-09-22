@@ -4,7 +4,7 @@ Shared execution and service capabilities for AI development products.
 
 [Usage](docs/usage.md) · [Changelog](CHANGELOG.md) · [Decisions](docs/decisions/) · [Model selection operations](docs/usage-model-discovery.md)
 
-agent-core is the library behind [`cragent`](https://github.com/comain/code-review-agent), [`unit-test-agent`](https://github.com/comain/unit-test-agent), [`spec_generator_agent`](https://github.com/comain/spec_generator_agent), and `dev-flow-agent`. A product selects an agent by configuration and composes the packages below. Product code keeps domain policy and does not import OpenCode, Pi, or any future agent implementation directly.
+agent-core is the library behind [`cragent`](https://github.com/comain/code-review-agent), [`unit-test-agent`](https://github.com/comain/unit-test-agent), and [`spec_generator_agent`](https://github.com/comain/spec_generator_agent). [`dev-workflow-agent`](https://github.com/comain/dev-workflow-agent) is the worked example: a gated triage, spec, design, and build pipeline composed from these packages. A product selects an agent by configuration and keeps domain policy out of OpenCode, Pi, or any future agent implementation.
 
 ## Features
 
@@ -89,6 +89,7 @@ src/agent_core/
 | Why the contracts look like this | [Decisions](docs/decisions/) |
 | Release history | [Changelog](CHANGELOG.md) |
 | Harness parity with the source | [Parity](docs/parity.md) |
+| Example product | [dev-workflow-agent](https://github.com/comain/dev-workflow-agent) |
 
 ## Testing
 
