@@ -1,0 +1,94 @@
+#!/bin/sh
+# Fixed argument order; never source or evaluate a credential file.
+set -eu
+umask 0007
+if [ "$#" -ne 6 ] || [ "$1" != --python ] || [ "$3" != --config ] || [ "$5" != --secret-env-file ]; then
+    printf '%s\n' 'Usage: refresh-model-catalog --python /absolute/python --config /absolute/config.json --secret-env-file /absolute/credentials.json' >&2
+    exit 2
+fi
+for path in "$2" "$4" "$6"; do
+    case "$path" in
+        /*) ;;
+        *) printf '%s\n' 'refresh-model-catalog: absolute paths required' >&2; exit 2 ;;
+    esac
+done
+exec "$2" -I - "$2" "$4" "$6" <<'PY'
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import stat
+import sys
+
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def private_path(info, mode, directory=False):
+    kind = stat.S_ISDIR if directory else stat.S_ISREG
+    if not kind(info.st_mode) or info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != mode:
+        raise ValueError("refresh credentials require refresher ownership and modes 0700/0600")
+
+
+try:
+    python, config_path, secret_path = sys.argv[1:]
+    config = json.loads(Path(config_path).read_text(), object_pairs_hook=unique_object)
+    cache_root = Path(config["cache_root"])
+    if not cache_root.is_absolute() or not cache_root.is_dir():
+        raise ValueError("cache directory must be provisioned at an absolute path")
+
+    # The CLI independently takes refresh.lock; do not contend with our own exec.
+    lock_fd = os.open(cache_root / "refresh-launcher.lock", os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o660)
+    if not stat.S_ISREG(os.fstat(lock_fd).st_mode):
+        raise ValueError("invalid refresh lock")
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("refresh-model-catalog: refresh already running", file=sys.stderr)
+        sys.exit(75)
+    os.set_inheritable(lock_fd, True)
+
+    aa_key = "ARTIFICIAL_ANALYSIS_API_KEY"
+    aa_alias = "ARTIFICAL_ANALYSIS_KEY"
+    provider_keys = {provider["api_key_env"] for provider in config["providers"]}
+    reserved = {"PATH", "HOME", "SHELL", "ENV", "BASH_ENV", "LANG", "LC_ALL",
+                "AGENT_MODEL_SELECTION_CONFIG", "AGENT_MODEL_CODING_INDEX_MIN", aa_key, aa_alias}
+    for key in provider_keys:
+        if (not isinstance(key, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key)
+                or key in reserved or key.startswith(("PYTHON", "LD_", "DYLD_"))):
+            raise ValueError("invalid provider credential environment name")
+
+    private_path(Path(secret_path).parent.lstat(), 0o700, directory=True)
+    secret_fd = os.open(secret_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(secret_fd, "r") as source:
+        private_path(os.fstat(source.fileno()), 0o600)
+        credentials = json.load(source, object_pairs_hook=unique_object)
+    if not isinstance(credentials, dict) or not credentials.keys() <= provider_keys | {aa_key, aa_alias}:
+        raise ValueError("credential JSON contains undeclared environment keys")
+    if any(not isinstance(value, str) or not value or "\x00" in value for value in credentials.values()):
+        raise ValueError("credential values must be nonempty strings without NUL")
+    if not provider_keys <= credentials.keys() or not ({aa_key, aa_alias} & credentials.keys()):
+        raise ValueError("credential JSON is missing a required key")
+    if aa_key in credentials and aa_alias in credentials and credentials[aa_key] != credentials[aa_alias]:
+        raise ValueError("conflicting benchmark credentials")
+    credentials[aa_key] = credentials.pop(aa_alias, credentials.get(aa_key))
+
+    # No CWD/PYTHONPATH imports or inherited worker/service secrets.
+    environment = {"PATH": "/usr/bin:/bin", "AGENT_MODEL_SELECTION_CONFIG": config_path}
+    if "AGENT_MODEL_CODING_INDEX_MIN" in os.environ:
+        environment["AGENT_MODEL_CODING_INDEX_MIN"] = os.environ["AGENT_MODEL_CODING_INDEX_MIN"]
+    environment.update(credentials)
+    os.chdir("/")
+    os.execve(python, [python, "-I", "-m", "agent_core.model_selection", "refresh", "--config", config_path], environment)
+except (OSError, ValueError, TypeError, KeyError):
+    # Parser/OS exception text can contain credential data; never echo it.
+    print("refresh-model-catalog: invalid launch input, permissions, or exec failure", file=sys.stderr)
+    sys.exit(2)
+PY

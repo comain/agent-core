@@ -1,0 +1,10 @@
+# EXAMPLE ONLY: ops must substitute reviewed absolute paths and provision identities.
+# /etc/cron.d format (includes user). Do not install from the repository automatically.
+# Daily 03:15 in the cron daemon's HOST timezone; record that timezone at deployment.
+# No CRON_TZ override. DST behavior follows the host cron implementation.
+# Shared cache: dirs 2770, files 0660, umask 0007. Secrets: separate dirs 0700/files 0600.
+# The launcher uses nonblocking flock; exit 75 means another refresh is running.
+# Logs must be provisioned, restricted, rotated and monitored by ops. No inline secrets.
+SHELL=/bin/sh
+PATH=/usr/bin:/bin
+15 3 * * * agent-model-refresh /opt/agent-core/scripts/refresh-model-catalog --python /opt/agent-core/venv/bin/python --config /etc/agent-model-selection/catalog.json --secret-env-file /etc/agent-model-refresh/credentials.json >> /var/log/agent-model-refresh/catalog.log 2>&1

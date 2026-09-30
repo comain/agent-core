@@ -1,0 +1,163 @@
+{
+  "contract_version": "agent-core-0.6.11",
+  "thread_ids": {
+    "base": "uta:generation-cycle:v1:task1:batch1:run1",
+    "topology_v2": "uta:generation-cycle:v2:task1:batch1:run1",
+    "clean_rerun": "uta:generation-cycle:v1:task1:batch1:run2",
+    "other_unit": "uta:generation-cycle:v1:task1:batch2:run1"
+  },
+  "checkpoint_states": {
+    "absent": {
+      "disposition": "started",
+      "invoke_argument": "initial",
+      "state": {"marker": "started"}
+    },
+    "pending": {
+      "disposition": "resumed",
+      "invoke_argument": null,
+      "state": {"marker": "resumed"}
+    },
+    "completed": {
+      "disposition": "reused_completed",
+      "invoke_argument": "not_called",
+      "state": {"marker": "completed"}
+    },
+    "corrupt": {
+      "error": "WorkflowCheckpointError",
+      "invoke_argument": "not_called"
+    }
+  },
+  "turn_results": {
+    "success": {
+      "status": "completed",
+      "text": "done",
+      "session_id": null,
+      "usage": {},
+      "provider_cost_usd": null,
+      "retrospective": {},
+      "patch_count": 0,
+      "recovered": false,
+      "attempts": 1,
+      "elapsed_seconds": 2.5,
+      "diagnostics": {
+        "turn_type": "completed",
+        "node_status": "accepted"
+      },
+      "raw_log_path": null
+    },
+    "failure": {
+      "status": "failed",
+      "text": "",
+      "session_id": null,
+      "usage": {},
+      "provider_cost_usd": null,
+      "retrospective": {},
+      "patch_count": 0,
+      "recovered": false,
+      "attempts": 1,
+      "elapsed_seconds": 2.5,
+      "diagnostics": {
+        "turn_type": "error",
+        "error": true,
+        "node_status": "rejected"
+      },
+      "raw_log_path": null
+    },
+    "cancelled": {
+      "status": "cancelled",
+      "text": "",
+      "session_id": null,
+      "usage": {},
+      "provider_cost_usd": null,
+      "retrospective": {},
+      "patch_count": 0,
+      "recovered": false,
+      "attempts": 0,
+      "elapsed_seconds": 0.0,
+      "diagnostics": {},
+      "raw_log_path": null
+    }
+  },
+  "turn_traces": {
+    "success": [
+      "cost_gate:op-1:1",
+      "before_turn",
+      "turn",
+      "on_cost:op-1:1:None",
+      "after_turn:guard",
+      "flush",
+      "on_result:completed"
+    ],
+    "failure": [
+      "cost_gate:op-1:1",
+      "before_turn",
+      "turn",
+      "on_cost:op-1:1:None",
+      "after_turn:guard",
+      "flush",
+      "on_result:failed"
+    ],
+    "cancelled": ["on_result:cancelled"],
+    "guard_rejected": [
+      "cost_gate:op-1:1",
+      "before_turn",
+      "turn",
+      "on_cost:op-1:1:None",
+      "after_turn:guard",
+      "flush"
+    ]
+  },
+  "fallback_turn": {
+    "result": {
+      "status": "completed",
+      "text": "done",
+      "session_id": "session-second",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "total_tokens": 0,
+        "cost_usd": 0.0
+      },
+      "provider_cost_usd": 0.35,
+      "retrospective": {},
+      "patch_count": 2,
+      "recovered": false,
+      "attempts": 1,
+      "elapsed_seconds": 2.5,
+      "diagnostics": {
+        "turn_type": "completed",
+        "node_status": "accepted"
+      },
+      "raw_log_path": null
+    },
+    "retained_session_ids": ["session-second"],
+    "paid_attempts": [
+      {
+        "operation_id": "op-fallback",
+        "paid_attempt_ordinal": 1,
+        "provider_cost_usd": 0.35
+      }
+    ],
+    "trace": [
+      "cost_gate:op-fallback:1",
+      "open_fallback_session",
+      "before_turn",
+      "candidate_open:first",
+      "candidate_turn:first",
+      "candidate_snapshot:first",
+      "candidate_close:first",
+      "candidate_open:second",
+      "candidate_turn:second",
+      "candidate_snapshot:second",
+      "on_cost:op-fallback:1:0.35",
+      "after_turn:guard",
+      "flush",
+      "candidate_snapshot:second",
+      "candidate_close:second",
+      "on_result:completed"
+    ]
+  }
+}
